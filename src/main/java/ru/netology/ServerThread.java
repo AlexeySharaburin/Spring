@@ -16,6 +16,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.Socket;
 import java.net.URI;
@@ -64,7 +66,6 @@ public class ServerThread extends Thread {
                 getPart(in.readLine());
                 System.out.println("Multipart/form-data parameters:");
                 printMapXwww(getParts(in.readLine()));
-
 
 
             }
@@ -222,11 +223,15 @@ public class ServerThread extends Thread {
 
         Map<String, List<String>> params = new HashMap<>();
 
+        String pathName = "Data.jpg";
+
         String[] string = stringName.split("\\?"); // получаем часть строки с запросами
 
         String boundary = string[1].substring(string[1].indexOf("boundary=--"), string[1].indexOf(",")); // получаем границу
 
         String[] bodyString = string[1].split("\r\n"); // получаем тело запроса
+
+        String[] fileBody = bodyString[1].split("\r\n\r\n"); // получаем  тело файла
 
         String[] pairs = bodyString[1].split(boundary); // получаем пары параметров  в виде "Content-Disposition: form-data; name="value""
 
@@ -247,6 +252,12 @@ public class ServerThread extends Thread {
             } else {
                 System.out.println("Прикреплён файл" + URLDecoder.decode(data[1].trim(), StandardCharsets.UTF_8));
             }
+
+            final byte[] bytes = fileBody[1].getBytes(StandardCharsets.UTF_8); // записываем в файл
+            InputStream stream = new ByteArrayInputStream(bytes);
+            BufferedImage image = ImageIO.read(stream);
+            ImageIO.write(image, "jpg", new File(pathName));
+
         }
         return params;
     }
