@@ -1,16 +1,24 @@
 package ru.netology;
 
-import org.apache.commons.collections4.MultiMap;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.ArrayListValuedHashMap;
-import org.apache.http.HttpEntity;
+import org.apache.commons.fileupload.*;
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.http.HttpRequest;
 import org.apache.http.NameValuePair;
+import org.apache.http.RequestLine;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.*;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -50,8 +58,15 @@ public class ServerThread extends Thread {
                 System.out.println("x-www-form-urlencoded Request:" + getPostParam(in.readLine()));
 
                 printMapXwww(getPostParamsXwww(in.readLine()));
+
                 System.out.println("MultiValuedMap variant:");
                 getPostParam(in.readLine());
+
+
+                getPart(in.readLine());
+                System.out.println("Multipart/form-data parameters:");
+                printMapXwww(getParts(in.readLine()));
+
 
             }
         } catch (IOException | URISyntaxException ioException) {
@@ -127,7 +142,7 @@ public class ServerThread extends Thread {
             System.out.println("Key: " + entry.getKey() + ", value: " + entry.getValue());
         }
     }
-    
+
 
     public String getPostParam(String name) {
         String[] line = name.split("\\?");
@@ -197,5 +212,54 @@ public class ServerThread extends Thread {
         }
     }
 
+    public String getPart(String name) {
+        String[] line = name.split("\\?");
+        System.out.println("Path multipart/form-data: ->" + line[0]);
+        return line[0];
+    }
+
+
+    public Map<String, List<String>> getParts(String stringName) throws IOException {
+
+        Map<String, List<String>> params = new HashMap<>();
+
+        String pathName = "Data.jpg";
+
+        String[] string = stringName.split("\\?"); // получаем часть строки с запросами
+
+        String boundary = string[1].substring(string[1].indexOf("boundary=--"), string[1].indexOf(",")); // получаем границу
+
+        String[] bodyString = string[1].split("\r\n"); // получаем тело запроса
+
+        String[] fileBody = bodyString[1].split("\r\n\r\n"); // получаем  тело файла
+
+        String[] pairs = bodyString[1].split(boundary); // получаем пары параметров  в виде "Content-Disposition: form-data; name="value""
+
+        for (int i = 0; i < pairs.length; i++) {
+            String[] data = pairs[i].split("=");
+            String name = URLDecoder.decode(data[0].substring(0, data[0].indexOf(";")).trim(), StandardCharsets.UTF_8);
+            if (name.equals("name")) {
+                String value = "";
+                if (data.length > 1) {
+                    value = URLDecoder.decode(data[1].trim(), StandardCharsets.UTF_8);
+                }
+                List<String> values = params.get(name);
+                if (values == null) {
+                    values = new ArrayList<>();
+                    params.put(name, values);
+                }
+                values.add(value);
+            } else {
+                System.out.println("Прикреплён файл" + URLDecoder.decode(data[1].trim(), StandardCharsets.UTF_8));
+            }
+
+            final byte[] bytes = fileBody[1].getBytes(StandardCharsets.UTF_8); // записываем в файл
+            InputStream stream = new ByteArrayInputStream(bytes);
+            BufferedImage image = ImageIO.read(stream);
+            ImageIO.write(image, "jpg", new File(pathName));
+
+        }
+        return params;
+    }
 
 }
